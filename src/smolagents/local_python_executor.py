@@ -1765,4 +1765,4 @@ class LocalPythonExecutor(PythonExecutor):
         self.static_tools = {**tools, **BASE_PYTHON_TOOLS.copy(), **self.additional_functions}
 
 
-__all__ = ["evaluate_python_code", "LocalPythonExecutor"]
+__all__ = ["evaluate_python_code", "LocalPythonExecutor", "PythonExecutor"]

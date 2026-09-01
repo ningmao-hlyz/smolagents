@@ -8,6 +8,43 @@ To learn more about code execution and its risks, make sure to read the [Secure 
 tutorial. This reference contains the API docs for the underlying classes: the base `PythonExecutor` interface and all 
 available executor implementations.
 
+## Third-party executors
+
+Third-party executors can be distributed independently of `smolagents` through the
+`smolagents.executors` Python entry-point group. The entry-point name is passed as
+`executor_type` when creating a `CodeAgent`.
+
+For example, a package can register an executor in its `pyproject.toml`:
+
+```toml
+[project.entry-points."smolagents.executors"]
+myprovider = "myprovider:MyProviderExecutor"
+```
+
+The entry point must resolve to a callable that accepts
+`additional_authorized_imports`, `logger`, and any values supplied through
+`executor_kwargs`, and returns a `PythonExecutor` instance. A remote executor can
+subclass `RemotePythonExecutor` to reuse the common remote execution behavior.
+
+```python
+from smolagents import CodeAgent
+
+
+def create_agent(model):
+    return CodeAgent(
+        tools=[],
+        model=model,
+        executor_type="myprovider",
+        executor_kwargs={"region": "us-east-1"},
+    )
+```
+
+The built-in executor names remain available and take precedence over entry points
+with the same name. Passing an executor instance directly through `executor` also
+continues to work. An executor is not a security boundary by itself; review the
+implementation and its execution environment before installing or using a third-party
+executor.
+
 ## Python executor
 
 [[autodoc]] smolagents.local_python_executor.PythonExecutor

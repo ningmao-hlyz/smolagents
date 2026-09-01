@@ -39,7 +39,7 @@ from .tools import Tool, get_tools_definition_code
 from .utils import AgentError
 
 
-__all__ = ["BlaxelExecutor", "E2BExecutor", "ModalExecutor", "DockerExecutor"]
+__all__ = ["BlaxelExecutor", "E2BExecutor", "ModalExecutor", "DockerExecutor", "RemotePythonExecutor"]
 
 
 try:
