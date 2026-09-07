@@ -2276,10 +2276,29 @@ print("Ok, calculation done!")""")
         assert agent.python_executor.additional_authorized_imports == []
         assert agent.python_executor.kwargs == {"setting": "value"}
         entry_point.load.assert_called_once_with()
+        agent.cleanup()
+
+    def test_code_agent_rejects_managed_agents_from_entry_point_executor(self):
+        entry_point = MagicMock()
+        entry_point.name = "dummy"
+
+        with patch("smolagents.agents._metadata.entry_points", return_value=[entry_point]):
+            managed_agent = CodeAgent(
+                tools=[], model=MagicMock(), name="managed_agent", description="A managed test agent"
+            )
+            with pytest.raises(Exception, match="Managed agents are not yet supported with remote code execution"):
+                CodeAgent(
+                    tools=[],
+                    model=MagicMock(),
+                    managed_agents=[managed_agent],
+                    executor_type="dummy",
+                )
+
+        entry_point.load.assert_not_called()
 
     def test_code_agent_rejects_unknown_executor_type(self):
         with patch("smolagents.agents._metadata.entry_points", return_value=[]):
-            with pytest.raises(ValueError, match="Unsupported executor type"):
+            with pytest.raises(ValueError, match="Available executor types"):
                 CodeAgent(tools=[], model=MagicMock(), executor_type="unknown")
 
     @pytest.mark.parametrize("agent_dict_version", ["v1.9", "v1.10", "v1.20"])

@@ -1618,9 +1618,19 @@ class CodeAgent(MultiStepAgent):
                 self.additional_authorized_imports, self.logger, **self.executor_kwargs
             )
 
-        for entry_point in _metadata.entry_points(group=_EXECUTOR_ENTRY_POINT_GROUP):
-            if entry_point.name != self.executor_type:
-                continue
+        entry_points = list(_metadata.entry_points(group=_EXECUTOR_ENTRY_POINT_GROUP))
+        matching_entry_points = [entry_point for entry_point in entry_points if entry_point.name == self.executor_type]
+        if matching_entry_points:
+            if self.managed_agents:
+                raise Exception("Managed agents are not yet supported with remote code execution.")
+
+            entry_point = matching_entry_points[0]
+            if len(matching_entry_points) > 1:
+                warnings.warn(
+                    f"Multiple executor entry points named {self.executor_type!r} were found; "
+                    f"using {entry_point.value!r}.",
+                    stacklevel=2,
+                )
 
             try:
                 executor_factory = entry_point.load()
@@ -1645,7 +1655,14 @@ class CodeAgent(MultiStepAgent):
                 )
             return executor
 
-        raise ValueError(f"Unsupported executor type: {self.executor_type}")
+        available_executor_types = sorted(
+            {"local", *remote_executors} | {entry_point.name for entry_point in entry_points}
+        )
+        raise ValueError(
+            f"Unsupported executor type: {self.executor_type!r}. "
+            f"Available executor types: {', '.join(available_executor_types)}. "
+            "Install a provider package that registers an executor entry point to use another type."
+        )
 
     def initialize_system_prompt(self) -> str:
         system_prompt = populate_template(

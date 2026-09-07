@@ -74,7 +74,7 @@ def test_entry_point_executor_after_install(monkeypatch):
         (plugin_module_dir / "__init__.py").write_text(
             dedent(
                 """
-                from smolagents.local_python_executor import CodeOutput, PythonExecutor
+                from smolagents import CodeOutput, PythonExecutor
 
 
                 class DemoExecutor(PythonExecutor):

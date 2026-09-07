@@ -9,7 +9,7 @@ import pytest
 from rich.console import Console
 
 from smolagents.default_tools import FinalAnswerTool, WikipediaSearchTool
-from smolagents.local_python_executor import CodeOutput
+from smolagents.local_python_executor import CodeOutput, PythonExecutor
 from smolagents.monitoring import AgentLogger, LogLevel
 from smolagents.remote_executors import (
     BlaxelExecutor,
@@ -74,7 +74,51 @@ class TestRemotePythonExecutor:
 
     def test_deserialize_final_answer_rejects_unprefixed_payload(self):
         with pytest.raises(SerializationError, match="Unknown final answer format"):
-            RemotePythonExecutor._deserialize_final_answer("legacy-unprefixed-payload", allow_pickle=True)
+            RemotePythonExecutor.deserialize_final_answer("legacy-unprefixed-payload", allow_pickle=True)
+
+    def test_install_packages_uses_plain_python(self):
+        executor = RemotePythonExecutor(additional_imports=[], logger=MagicMock())
+        executor.run_code_raise_errors = MagicMock(
+            return_value=CodeOutput(output=None, logs="installed", is_final_answer=False)
+        )
+
+        executor.install_packages(["example-package"])
+
+        sent_code = executor.run_code_raise_errors.call_args.args[0]
+        assert "subprocess.run" in sent_code
+        assert "sys.executable" in sent_code
+        assert "!pip install" not in sent_code
+
+    def test_install_packages_propagates_agent_error(self):
+        executor = RemotePythonExecutor(additional_imports=[], logger=MagicMock())
+        executor.run_code_raise_errors = MagicMock(side_effect=AgentError("installation failed", executor.logger))
+
+        with pytest.raises(AgentError, match="installation failed"):
+            executor.install_packages(["example-package"])
+
+    def test_final_answer_exception_base_is_configurable(self):
+        class ExceptionBasedExecutor(RemotePythonExecutor):
+            FINAL_ANSWER_EXCEPTION_BASE = "Exception"
+
+        executor = ExceptionBasedExecutor(additional_imports=[], logger=MagicMock())
+        final_answer_tool = FinalAnswerTool()
+
+        executor._patch_final_answer_with_exception(final_answer_tool)
+
+        assert "class FinalAnswerException(Exception):" in final_answer_tool.forward.__source__
+
+    def test_cleanup_has_a_safe_default(self):
+        class MinimalExecutor(PythonExecutor):
+            def send_tools(self, tools):
+                pass
+
+            def send_variables(self, variables):
+                pass
+
+            def __call__(self, code_action):
+                return CodeOutput(output=None, logs="", is_final_answer=False)
+
+        MinimalExecutor().cleanup()
 
     @require_run_all
     def test_send_tools_with_default_wikipedia_search_tool(self):
@@ -83,7 +127,8 @@ class TestRemotePythonExecutor:
         executor.run_code_raise_errors = MagicMock()
         executor.send_tools({"wikipedia_search": tool})
         assert executor.run_code_raise_errors.call_count == 2
-        assert "!pip install wikipedia-api" == executor.run_code_raise_errors.call_args_list[0].args[0]
+        assert "subprocess.run" in executor.run_code_raise_errors.call_args_list[0].args[0]
+        assert "wikipedia-api" in executor.run_code_raise_errors.call_args_list[0].args[0]
         assert "class WikipediaSearchTool(Tool)" in executor.run_code_raise_errors.call_args_list[1].args[0]
 
 
