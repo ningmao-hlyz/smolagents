@@ -141,16 +141,27 @@ locals().update(vars_dict)
         This default uses plain Python rather than IPython shell syntax, so it is
         compatible with both notebook kernels and regular Python interpreters.
         ``run_code_raise_errors`` must raise :class:`~smolagents.AgentError` if
-        the installation command fails.
+        the installation command fails. Packages installed to the user site are
+        added to the running interpreter's import path.
         """
 
         if additional_imports:
             code = dedent(
                 f"""
+                import importlib
+                import os
+                import site
                 import subprocess
                 import sys
 
                 subprocess.run([sys.executable, "-m", "pip", "install", *{additional_imports!r}], check=True)
+
+                user_site = site.getusersitepackages()
+                if os.path.isdir(user_site) and user_site not in sys.path:
+                    system_sites = set(getattr(site, "getsitepackages", lambda: [])())
+                    indices = [index for index, path in enumerate(sys.path) if path in system_sites]
+                    sys.path.insert(min(indices) if indices else len(sys.path), user_site)
+                importlib.invalidate_caches()
                 """
             )
             code_output = self.run_code_raise_errors(code)

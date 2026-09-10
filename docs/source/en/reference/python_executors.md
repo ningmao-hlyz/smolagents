@@ -58,8 +58,9 @@ idempotent and safe after a partially failed initialization.
 `RemotePythonExecutor` provides the shared protocol for remote implementations.
 Implement `run_code_raise_errors`, which must raise `AgentError` when remote execution
 fails. The base `install_packages` runs `sys.executable -m pip install` inside the
-remote interpreter, and can be overridden when a provider has a native package API;
-overrides should raise `AgentError` when installation fails.
+remote interpreter and makes user-site installs importable in the running interpreter.
+It can be overridden when a provider has a native package API; overrides should raise
+`AgentError` when installation fails.
 Use `deserialize_final_answer()` to decode remote final-answer payloads. Providers
 whose runtime only reports `Exception` subclasses can set
 `FINAL_ANSWER_EXCEPTION_BASE = "Exception"`; the default remains `"BaseException"`.
